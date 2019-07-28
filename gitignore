@@ -1,0 +1,4 @@
+settings.cfg
+__pycache__/
+.vscode
+test2.py
