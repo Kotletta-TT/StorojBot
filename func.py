@@ -1,7 +1,7 @@
 import requests
 import re
 import os
-import configparser
+
 
 def url_or_answer(answer_string):
     if  'avito.ru' in answer_string:
@@ -43,28 +43,6 @@ def full_check(url):
 
 
 
-
-
-# if __name__ == '__main__':
-    # full_check(message)
-
-
-
-
-
-
-
-
-        #Функция нужна только тем кто забрал проект с GitHab`a
-#def createConfig(path_conf):
-    #token_input = input('\nEnter you Token Telegram\n\n') #т.к. пишу на Атоме,
-    # стараюсь отключать любое взаимодействие с пользователем через терминал.
-    #config.add_section('Telegram_Token')
-    #config.set("Telegram_Token", "Token", token_input)
-
-    #with open (path_conf, 'w') as config_file:
-            #config.write(config_file)
-
 def get_token():
     config = configparser.ConfigParser()
     path_conf = 'settings.cfg'
@@ -105,15 +83,3 @@ def create_kbrd(name_keyboard):
     reply_mup_array = {'start':{"inline_keyboard":[[{"text":"Storoj","callback_data":"storoj_bot"},{"text":"AutoLoad","callback_data":"auto_load"}]]}}
     if name_keyboard in reply_mup_array:
         return reply_mup_array[name_keyboard]
-
-
-
-
-#if __name__ == '__main__':
-
-# Конструкция немного потертая (создания переменной конфига нету), для создания конфига с токеном
-# Валидно для пользователей GitHab`a
-    # if not os.path.exists(path_conf): #
-    #     createConfig(path_conf)
-    #
-    # token = get_token()
