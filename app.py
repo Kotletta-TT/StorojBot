@@ -4,10 +4,11 @@ import threading
 import psycopg2
 import re
 import json
-from func import get_token as token
+import test
 from func import get_proxy as proxy
+from func import get_token as token
 #from func import check_url as check_url
-from test import check_new_time as start_storozj
+
 
 
 
@@ -16,6 +17,7 @@ TOKEN = token()
 dbname = 'storojdb'
 dbuser = 'storoj'
 counter = ''
+storoj = True
 bot = telebot.TeleBot(TOKEN)
 telebot.apihelper.proxy = {'https': PROXY}
 
@@ -34,13 +36,17 @@ def send_welcome(message):
 @bot.message_handler(commands=['url'])
 def start_url(message):
 	global counter
+	global storoj
+	storoj = True
 	chatid = message.chat.id
 	url = message.text.split()[1]
 	bot.send_message(chatid, 'Ссылка корректна!')
 	time.sleep(2)
 	bot.send_message(chatid, '''Я просканирую первые страницы и буду ждать новых объявлений, в случае появления - я вам все пришлю''')
+	global t1
 	t1 = threading.Thread(target=thread_start_storj, args=(dbname, dbuser, url))
 	t1.start()
+	t1.daemon
 	time.sleep(10)
 	conn = psycopg2.connect('dbname=' + dbname + ' user=' + dbuser)
 	cur = conn.cursor()
@@ -50,8 +56,9 @@ def start_url(message):
 	counter = int(pre_counter[0])
 	conn.commit()
 	conn.close()
-	while True:
+	while storoj == True:
 		time.sleep(10)
+		print('url working')
 		conn = psycopg2.connect('dbname=' + dbname + ' user=' + dbuser)
 		cur = conn.cursor()
 		cur.execute('SELECT max(id) FROM ads;')
@@ -70,11 +77,30 @@ def start_url(message):
 			counter = new_count
 		conn.commit()
 		conn.close()
+	print('stop')
+	t1.join()
+	bot.send_message(chatid, 'Завершаю работу, чищу базу. Если что-то понадобится... только скажи')
+	conn = psycopg2.connect('dbname=' + dbname + ' user=' + dbuser)
+	cur = conn.cursor()
+	cur.execute("DROP TABLE ads;")
+	cur.execute("CREATE TABLE ads (id serial primary key, id_ads integer, adname text, price text, city text, url text, addate text);")
+	conn.commit()
+	conn.close()
 
 
 def thread_start_storj(dbname, dbuser, url):
 	time.sleep(5)
-	start_storozj(dbname, dbuser, url)
+	test.check_new_time(dbname, dbuser, url)
+
+
+
+
+@bot.message_handler(commands=['stop'])
+def stop_working(message):
+	global storoj
+	storoj = False
+	time.sleep(30)
+	t1.join()
 
 
 

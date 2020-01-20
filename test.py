@@ -2,6 +2,8 @@ import time
 import datetime
 import psycopg2
 from parser_p import parser_pages as get_avito
+#import app
+
 
 ONE_MINUTE = 60
 REQUEST_DELAY = ONE_MINUTE * 5  # время между зпросами (300 по умолчанию)
@@ -37,6 +39,7 @@ def check_new():
 # Блок поиска и парсинга объявлений по времени,
 # На данный момент работает и используется в коде
 def check_new_time(dbname, dbuser, url=DEFAULT_AVITO_URL, count_p=2):  # Передаем, ссылку и количество страниц указанное пользователем
+    print('start storoj')
     conn = psycopg2.connect('dbname=' + dbname + ' user=' + dbuser)
     cur = conn.cursor()
 
@@ -51,6 +54,7 @@ def check_new_time(dbname, dbuser, url=DEFAULT_AVITO_URL, count_p=2):  # Пер�
     conn.close()
 
     while True:
+        time.sleep(1)
         check_dict = {}
 
         today = datetime.date.today().strftime("%d %B")  # Находимм "Сегодня"
@@ -83,6 +87,7 @@ def check_new_time(dbname, dbuser, url=DEFAULT_AVITO_URL, count_p=2):  # Пер�
 
         conn.commit()
         conn.close()
+    print('Exit storoj')
 
 
 def convert_secs(ttime):

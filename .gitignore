@@ -1,6 +1,8 @@
 settings.cfg
 /__pycache__/
 test2.py
-/
+/.idea/
+.idea
+.idea/
 /env/
 /.vscode/

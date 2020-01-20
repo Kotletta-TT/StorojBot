@@ -47,17 +47,17 @@ def full_check(url):
 
 def get_token():
     config = configparser.ConfigParser()
-    path_conf = 'settings.cfg'
+    path_conf = '/home/testo/StorojBot/settings.cfg'
     config.read(path_conf)
     tele_token = config.get('Telegram_Token', 'Token')
     return tele_token
 
 def get_proxy():
     config = configparser.ConfigParser()
-    path_conf = 'settings.cfg'
+    path_conf = '/home/testo/StorojBot/settings.cfg'
     config.read(path_conf)
     tele_proxy = config.get('Telegram_Proxy', 'Proxy')
-    return  tele_proxy
+    return tele_proxy
 
 
 ##################################################################################################################
