@@ -1,53 +1,82 @@
-from flask import Flask
-from flask import request
-from flask_debugtoolbar import DebugToolbarExtension
-import test as my_test
-import func
-
-app = Flask(__name__)
-app.debug = True
-
-app.secret_key = 'development key'
-
-toolbar = DebugToolbarExtension(app)
-
-@app.route('/', methods=['POST', 'GET'])
-def index():
-    # return 'Hello, World!'
-    if request.method == 'POST':
-
-        dat_json = request.get_json()
-        if 'callback_query' in dat_json.keys():
-            chat_id = dat_json['callback_query']['message']['chat']['id']
-            message = dat_json['callback_query']['message']['text']
-            message_id = dat_json['callback_query']['message']['message_id']
-            data = dat_json['callback_query']['data']
-
-            if 'storoj_bot' == data:
-                # parser_buttons = [{"text":"URL","callback_data":"url_pars"},{"text":"Запрос","callback_data":"zapros_pars"}]
-                func.send_Message(chat_id,
-                                  'Запуск сторожа. Введите URL-ссылку на Авито, либо запрос (учтите запрос идет по дефолтной ссылке авито - по Всей России, по всем категориям)')
-            if 'auto_load' == data:
-                storoj_buttons = [{"text": "URL", "callback_data": "url_pars"},
-                                  {"text": "Запрос", "callback_data": "zapros_storoj"}]
-                func.editMessageText(chat_id, 'Запуск Автозагрузки', message_id, storoj_buttons)
-        else:
-            chat_id = dat_json['message']['chat']['id']
-            message = dat_json['message']['text']
-            if '/start' == message:
-                func.send_Message(chat_id, 'Чем я могу помочь?', 'start')
-            elif '/help' == message:
-                func.send_Message(chat_id, 'Бот такой то, может то то, команды такие')
-            elif '/url https://www.avito.ru/' in message:
-                clr_url = message.split(' ')[1]
-                my_test.check_new_time(clr_url, chat_id)
-            else:
-                func.send_Message(chat_id, 'Не неси чепухи набирай, /start, или /help')
-
-        # func.send_Message(chat_id, message)
-
-    return '<h1>Storoj Bot</h1>'
+import telebot
+import time
+import threading
+import psycopg2
+import re
+import json
+from func import get_token as token
+from func import get_proxy as proxy
+#from func import check_url as check_url
+from test import check_new_time as start_storozj
 
 
-if __name__ == '__main__':
-    app.run(debug=True)
+
+PROXY = proxy()
+TOKEN = token()
+dbname = 'storojdb'
+dbuser = 'storoj'
+counter = ''
+bot = telebot.TeleBot(TOKEN)
+telebot.apihelper.proxy = {'https': PROXY}
+
+
+
+
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+	chatid = message.chat.id
+	bot.reply_to(message, '''Привет, я бот-сторож для Авито, я буду "сторожить" авито и если что то появится по твоей 
+	теме, я тебя оповещу и ты сможешь первым отреагировать на новые объявления''')
+	time.sleep(3)
+	bot.send_message(chatid, '''просто отправь /url "ссылка на товар или группу товаров в твоем городе или по россии" ''')
+
+
+@bot.message_handler(commands=['url'])
+def start_url(message):
+	global counter
+	chatid = message.chat.id
+	url = message.text.split()[1]
+	bot.send_message(chatid, 'Ссылка корректна!')
+	time.sleep(2)
+	bot.send_message(chatid, '''Я просканирую первые страницы и буду ждать новых объявлений, в случае появления - я вам все пришлю''')
+	t1 = threading.Thread(target=thread_start_storj, args=(dbname, dbuser, url))
+	t1.start()
+	time.sleep(10)
+	conn = psycopg2.connect('dbname=' + dbname + ' user=' + dbuser)
+	cur = conn.cursor()
+	cur.execute('SELECT max(id) FROM ads;')
+	a = cur.fetchall()
+	pre_counter = re.findall('(\d+)', str(a[0]))
+	counter = int(pre_counter[0])
+	conn.commit()
+	conn.close()
+	while True:
+		time.sleep(10)
+		conn = psycopg2.connect('dbname=' + dbname + ' user=' + dbuser)
+		cur = conn.cursor()
+		cur.execute('SELECT max(id) FROM ads;')
+		a = cur.fetchall()
+		pre_counter = re.findall('(\d+)', str(a[0]))
+		new_count = int(pre_counter[0])
+		if new_count > counter:
+			count_new_ads = new_count - counter
+			str_new_ads = str(count_new_ads)
+			cur.execute('SELECT * FROM ads ORDER BY id DESC LIMIT %s;', (str_new_ads,))
+			new_ads = cur.fetchall()
+			for one_ad in new_ads:
+				#str_ad = str(one_ad)
+				snd_txt = json.dumps(one_ad, ensure_ascii=False)
+				bot.send_message(chatid, snd_txt)
+			counter = new_count
+		conn.commit()
+		conn.close()
+
+
+def thread_start_storj(dbname, dbuser, url):
+	time.sleep(5)
+	start_storozj(dbname, dbuser, url)
+
+
+
+bot.polling()
+

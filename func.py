@@ -1,6 +1,7 @@
 import requests
 import re
 import os
+import configparser
 
 
 def url_or_answer(answer_string):
@@ -31,6 +32,7 @@ def check_url(url):
 
     request = str(requests.get(url).status_code)
     if '200' in request:
+
         return url
     else:
         print('bad')  #Ссылка недействительна, отправить сообщение пользователю
@@ -50,6 +52,17 @@ def get_token():
     tele_token = config.get('Telegram_Token', 'Token')
     return tele_token
 
+def get_proxy():
+    config = configparser.ConfigParser()
+    path_conf = 'settings.cfg'
+    config.read(path_conf)
+    tele_proxy = config.get('Telegram_Proxy', 'Proxy')
+    return  tele_proxy
+
+
+##################################################################################################################
+###########################Код ниже Относится к app_old используется только с ним!################################
+##################################################################################################################
 def get_Updates(token=get_token()):
     bot_api = 'https://api.telegram.org/bot{0}/{1}'.format(token, 'getUpdates')
     request = requests.get_json(bot_api) # Изменил с get на get_json надо проверить

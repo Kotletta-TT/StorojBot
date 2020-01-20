@@ -1,13 +1,12 @@
 import time
 import datetime
-import func
-import json
+import psycopg2
 from parser_p import parser_pages as get_avito
 
 ONE_MINUTE = 60
 REQUEST_DELAY = ONE_MINUTE * 5  # время между зпросами (300 по умолчанию)
 DEFAULT_AVITO_URL = 'https://www.avito.ru/rossiya/tovary_dlya_kompyutera/komplektuyuschie/videokarty?s_trg=11&cd=1&s=104'
-
+SNDTXT = None
 
 # Блок  поиска новых обьявлений путем отсеивания ID
 # На данный момент неиспользуется, т.к. неактуальна 
@@ -37,12 +36,19 @@ def check_new():
 
 # Блок поиска и парсинга объявлений по времени,
 # На данный момент работает и используется в коде
-def check_new_time(
-        url=DEFAULT_AVITO_URL,
-        chat_id='719714331', count_p=2):  # Передаем, ссылку и количество страниц,
-    source_dict = {}  # Указанное пользователем
+def check_new_time(dbname, dbuser, url=DEFAULT_AVITO_URL, count_p=2):  # Передаем, ссылку и количество страниц указанное пользователем
+    conn = psycopg2.connect('dbname=' + dbname + ' user=' + dbuser)
+    cur = conn.cursor()
+
+    source_dict = {}
     source_avito = get_avito(url, count_p)  # Первый эталонный запрос(источник для парсинга)
     source_dict.update(source_avito)
+    for oneString in source_dict.items():
+        #print(oneString)
+        dateplustime = ' '.join(oneString[1][3])
+        cur.execute('INSERT INTO ads (id_ads, adname, price, city, url, addate) VALUES (%s, %s, %s, %s, %s, %s);', (oneString[0], oneString[1][0], oneString[1][1], oneString[1][2], oneString[1][4], dateplustime))
+    conn.commit()
+    conn.close()
 
     while True:
         check_dict = {}
@@ -53,6 +59,8 @@ def check_new_time(
         time.sleep(REQUEST_DELAY)  # !!!!!!!!!!!!!!!! ТАЙМЕР ПРОВЕРКИ ТУТ!!!!!!!!!!!!!!!!
         check_avito = get_avito(url, count_p)  # Новый запрос "Проверка новых объявлений"
         check_dict.update(check_avito)
+        conn = psycopg2.connect('dbname=' + dbname + ' user=' + dbuser)
+        cur = conn.cursor()
         # Парсинг новых обьявлений по времени
         for i in check_dict.items():
 
@@ -60,40 +68,24 @@ def check_new_time(
 
             if check_new_date == today:
 
-                check_new_time = i[1][3][1]
+                check_new_time = i[1][3][1] # Если ошибка out of range, смотреть в parser_p 69 строка
                 sec = convert_secs(check_new_time)
                 # Условие верно, при разницы между временем запроса и временем объявления,
                 # Не более чем на 600сек (10мин)
                 if sec >= totime_sec - 600:
                     # Если нет в словаре-источнике(первом эталонном запросе)
                     if i not in source_dict.items():
+                        dateplustime = ' '.join(i[1][3])
 
-                        snd_txt = json.dumps(i, ensure_ascii=False)
-                        func.send_Message(chat_id, snd_txt)
+                        cur.execute('INSERT INTO ads (id_ads, adname, price, city, url, addate) VALUES (%s, %s, %s, %s, %s, %s);', (i[0], i[1][0], i[1][1], i[1][2], i[1][4], dateplustime))
                         source_dict[i[0]] = i[1]
                         print(len(source_dict))
-                    else:
-                        continue
-                else:
-                    continue
-            else:
-                continue
-        else:
-            continue
+
+        conn.commit()
+        conn.close()
 
 
 def convert_secs(ttime):
     conv_sec = ttime.split(':')
     sec_sum = int(conv_sec[0]) * 3600 + int(conv_sec[1]) * 60
     return sec_sum
-
-    # def storoj(url, chat_id, message, count_p=2):
-    #     source_avito = get_avito(url, count_p) # Первый эталонный запрос(источник для парсинга)
-    #     while True: # Бесконечный цикл на тайминге внутри!
-    #         # (НАДО ЕГО КАК ТО ПРЕРВАТЬ ПО ЗАПРОСУ ПОЛЬЗОВАТЕЛЯ)
-    #         check_new_time(url, count_p, source_avito)
-    #         func.send_Message(chat_id, text)
-
-
-if __name__ == '__main__':
-    check_new_time()
